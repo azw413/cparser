@@ -2451,6 +2451,7 @@ typedef enum specifiers_t {
 	SPECIFIER_INT64     = 1 << 14,
 	SPECIFIER_COMPLEX   = 1 << 15,
 	SPECIFIER_IMAGINARY = 1 << 16,
+    SPECIFIER_INFER     = 1 << 32,
 } specifiers_t;
 
 static entity_t *create_error_entity(symbol_t *const symbol,
@@ -2637,7 +2638,7 @@ static attribute_t *parse_microsoft_extended_decl_modifier(attribute_t *first)
 	return first;
 }
 
-static void parse_declaration_specifiers(declaration_specifiers_t *specifiers)
+static void parse_declaration_specifiers(declaration_specifiers_t *specifiers, int use_inference)
 {
 	type_t            *type            = NULL;
 	type_qualifiers_t  qualifiers      = TYPE_QUALIFIER_NONE;
@@ -2840,10 +2841,20 @@ finish_specifiers:
 				errorf(pos, "type specifier missing");
 				goto error_type;
 			}
-			warningf(WARN_IMPLICIT_INT, pos,
-			         "type specifier missing; assuming 'int'");
-			newtype = false;
-			type    = type_int;
+
+			if (use_inference)
+            {
+			    // We'll need to identify this type later
+                newtype = false;
+                type = type_infer;
+            }
+			else
+			{
+                warningf(WARN_IMPLICIT_INT, pos,
+                         "type specifier missing; assuming 'int'");
+                newtype = false;
+                type = type_int;
+            }
 		}
 	} else if (!type || !is_type_valid(skip_typeref(type))) {
 		atomic_type_kind_t atomic_type;
@@ -3064,7 +3075,7 @@ static void parse_identifier_list(scope_t *scope)
 static entity_t *parse_parameter(void)
 {
 	declaration_specifiers_t specifiers;
-	parse_declaration_specifiers(&specifiers);
+	parse_declaration_specifiers(&specifiers, 0);
 
 	entity_t *entity = parse_declarator(&specifiers,
 	                                    DECL_MAY_BE_ABSTRACT | DECL_IS_PARAMETER);
@@ -4401,7 +4412,7 @@ static void parse_declaration(parsed_declaration_func finished_declaration,
 
 	add_anchor_token(';');
 	declaration_specifiers_t specifiers;
-	parse_declaration_specifiers(&specifiers);
+	parse_declaration_specifiers(&specifiers, 0);
 	rem_anchor_token(';');
 
 	if (peek(';')) {
@@ -5161,7 +5172,7 @@ warn_unreachable:
 
 static void prepare_main_collect2(entity_t *entity);
 
-static void parse_external_declaration(void)
+static void parse_external_declaration(int using_inference)
 {
 	if (peek(T__Static_assert)) {
 		parse_static_assert();
@@ -5172,7 +5183,8 @@ static void parse_external_declaration(void)
 	 * specifiers */
 	add_anchor_token(';');
 	declaration_specifiers_t specifiers;
-	parse_declaration_specifiers(&specifiers);
+	parse_declaration_specifiers(&specifiers, using_inference);
+
 	rem_anchor_token(';');
 
 	/* must be a declaration */
@@ -5558,7 +5570,7 @@ static void parse_compound_type_entries(compound_t *compound)
 		case T_IDENTIFIER:
 			PUSH_EXTENSION();
 			declaration_specifiers_t specifiers;
-			parse_declaration_specifiers(&specifiers);
+			parse_declaration_specifiers(&specifiers, 0);
 			parse_compound_declarators(compound, &specifiers);
 			POP_EXTENSION();
 			break;
@@ -5586,7 +5598,7 @@ static void parse_compound_type_entries(compound_t *compound)
 static type_t *parse_typename(void)
 {
 	declaration_specifiers_t specifiers;
-	parse_declaration_specifiers(&specifiers);
+	parse_declaration_specifiers(&specifiers, 0);
 	if (specifiers.storage_class != STORAGE_CLASS_NONE
 	 || specifiers.thread_local)
 		/* TODO: improve error message, user does probably not know what a
@@ -6757,7 +6769,7 @@ static expression_t *parse_primary_expression(void)
 	case DECLARATION_START: {
 		position_t const pos = *HERE;
 		declaration_specifiers_t specifiers;
-		parse_declaration_specifiers(&specifiers);
+		parse_declaration_specifiers(&specifiers, 0);
 		type_t const *const type = parse_abstract_declarator(specifiers.type);
 		errorf(&pos, "encountered type '%T' while parsing expression", type);
 		return create_error_expression();
@@ -10086,7 +10098,7 @@ static statement_t *parse_declaration_statement(void)
 	statement_t *statement = allocate_statement_zero(STATEMENT_DECLARATION);
 
 	entity_t *before = current_scope->last_entity;
-	parse_external_declaration();
+	parse_external_declaration(0);
 
 	declaration_statement_t *const decl  = &statement->declaration;
 	entity_t                *const begin
@@ -10097,6 +10109,26 @@ static statement_t *parse_declaration_statement(void)
 
 	return statement;
 }
+
+static statement_t *parse_let_statement(void)
+{
+    statement_t *statement = allocate_statement_zero(STATEMENT_DECLARATION);
+
+    eat(T_let);
+
+    entity_t *before = current_scope->last_entity;
+    parse_external_declaration(1);
+
+    declaration_statement_t *const decl  = &statement->declaration;
+    entity_t                *const begin
+            = before != NULL ? before->base.next : current_scope->first_entity;
+    decl->declarations_begin = begin;
+    decl->declarations_end   = begin != NULL ? current_scope->last_entity
+                                             : NULL;
+
+    return statement;
+}
+
 
 /**
  * Parse an expression statement, i.e. expr ';'.
@@ -10273,6 +10305,7 @@ static statement_t *intern_parse_statement(void)
 	case T_return:    statement = parse_return();                  break;
 	case T_switch:    statement = parse_switch();                  break;
 	case T_while:     statement = parse_while();                   break;
+	case T_let:       statement = parse_let_statement();           break;
 
 	case EXPRESSION_START:
 		statement = parse_expression_statement();
@@ -10405,6 +10438,7 @@ static statement_t *parse_compound_statement(bool inside_expression_statement)
 	add_anchor_token(T_volatile);
 	add_anchor_token(T_wchar_t);
 	add_anchor_token(T_while);
+    add_anchor_token(T_let);
 
 	statement_t **anchor            = &statement->compound.statements;
 	bool          only_decls_so_far = true;
@@ -10528,6 +10562,7 @@ static statement_t *parse_compound_statement(bool inside_expression_statement)
 	rem_anchor_token('&');
 	rem_anchor_token('!');
 	rem_anchor_token('}');
+    rem_anchor_token(T_let);
 
 	POP_SCOPE();
 	POP_PARENT();
@@ -10879,7 +10914,7 @@ static void parse_external(void)
 	case '*':  /* * x; -> int* x; */
 	case '(':  /* (x); -> int (x); */
 			PUSH_EXTENSION();
-			parse_external_declaration();
+			parse_external_declaration(0);
 			POP_EXTENSION();
 		}
 		return;

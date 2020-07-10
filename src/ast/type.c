@@ -1130,6 +1130,8 @@ type_t *skip_typeref(type_t *type)
 {
 	type_qualifiers_t qualifiers = TYPE_QUALIFIER_NONE;
 
+	if (type == NULL) return NULL;
+
 	while (true) {
 		switch (type->kind) {
 		case TYPE_ERROR:

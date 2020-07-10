@@ -1418,6 +1418,12 @@ void print_ast(const translation_unit_t *unit)
 		if (is_generated_entity(entity))
 			continue;
 
+		/* Skip header expansion */
+		if (entity->base.pos.is_system_header) {
+            // Will need to add include line back in :(
+		    continue;
+        }
+
 		print_indent();
 		print_entity(entity);
 		print_char('\n');

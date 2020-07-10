@@ -16,6 +16,7 @@
 typedef enum atomic_type_kind_t {
 	ATOMIC_TYPE_FIRST = 1,
 	ATOMIC_TYPE_BOOL  = ATOMIC_TYPE_FIRST,
+    ATOMIC_TYPE_INFER,
 	ATOMIC_TYPE_WCHAR_T, /* only used in C++, in C code wchar_t is a pp-macro */
 	ATOMIC_TYPE_CHAR,
 	ATOMIC_TYPE_SCHAR,

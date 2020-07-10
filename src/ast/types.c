@@ -16,6 +16,7 @@
 /** The error type. */
 type_t *type_error_type;
 
+type_t *type_infer;
 type_t *type_bool;
 type_t *type_char;
 type_t *type_const_char;
@@ -143,6 +144,7 @@ void init_predefined_types(void)
 	static const type_base_t error = { TYPE_ERROR, TYPE_QUALIFIER_NONE, NULL };
 
 	type_error_type         = (type_t*)&error;
+	type_infer              = make_atomic_type(ATOMIC_TYPE_INFER,       TYPE_QUALIFIER_NONE);
 	type_bool               = make_atomic_type(ATOMIC_TYPE_BOOL,        TYPE_QUALIFIER_NONE);
 	type_signed_char        = make_atomic_type(ATOMIC_TYPE_SCHAR,       TYPE_QUALIFIER_NONE);
 	type_unsigned_char      = make_atomic_type(ATOMIC_TYPE_UCHAR,       TYPE_QUALIFIER_NONE);
