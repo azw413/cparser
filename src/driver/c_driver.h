@@ -61,6 +61,7 @@ bool print_preprocessing_tokens(compilation_env_t *env,
 bool generate_dependencies(compilation_env_t *env, compilation_unit_t *unit);
 bool do_nothing(compilation_env_t *env, compilation_unit_t *unit);
 bool do_print_ast(compilation_env_t *env, compilation_unit_t *unit);
+bool do_inference(compilation_env_t *env, compilation_unit_t *unit);
 bool do_parsing(compilation_env_t *env, compilation_unit_t *unit);
 bool build_firm_ir(compilation_env_t *env, compilation_unit_t *unit);
 bool generate_code_intermediate(compilation_env_t *env,

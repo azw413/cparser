@@ -59,7 +59,7 @@ set(SOURCES
 	src/wrappergen/write_compoundsizes.c
 	src/wrappergen/write_fluffy.c
 	src/wrappergen/write_jna.c
-)
+        src/driver/inference.h src/driver/inference.c)
 include_directories(src)
 
 add_subdirectory(libfirm)

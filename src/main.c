@@ -167,6 +167,7 @@ static void set_handlers(compile_mode_t mode)
 		                 parse_ignore_errors, false);
 		set_unit_handler(COMPILATION_UNIT_LEXER_TOKENS_CXX,
 		                 parse_ignore_errors, false);
+        //set_unit_handler(COMPILATION_UNIT_AST, do_inference, false);
 		set_unit_handler(COMPILATION_UNIT_AST, do_print_ast, true);
 		set_unused_after(MODE_PARSE_ONLY);
 		return;

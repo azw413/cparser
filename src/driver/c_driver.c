@@ -23,6 +23,7 @@
 #include "ast/type_t.h"
 #include "diagnostic.h"
 #include "driver_t.h"
+#include "inference.h"
 #include "firm/ast2firm.h"
 #include "firm/firm_opt.h"
 #include "parser/parser.h"
@@ -792,6 +793,8 @@ static bool read_ir_file(compilation_env_t *env, compilation_unit_t *unit)
 
 bool do_print_ast(compilation_env_t *env, compilation_unit_t *unit)
 {
+    infer_types(unit->ast, env);
+
 	if (!open_output(env))
 		return false;
 	print_to_file(env->out);
@@ -799,6 +802,16 @@ bool do_print_ast(compilation_env_t *env, compilation_unit_t *unit)
 	close_output(env);
 	return error_count == 0;
 }
+
+
+bool do_inference(compilation_env_t *env, compilation_unit_t *unit)
+{
+
+    //infer_types(unit->ast);
+
+    return error_count == 0;
+}
+
 
 bool do_nothing(compilation_env_t *env, compilation_unit_t *unit)
 {

@@ -970,6 +970,8 @@ static void report_assign_error(assign_error_t error, type_t *orig_type_left,
 	type_t *const type_left       = skip_typeref(orig_type_left);
 	type_t *const type_right      = skip_typeref(orig_type_right);
 
+	if (type_left == type_infer) return; // No error - types will be inferred.
+
 	switch (error) {
 	case ASSIGN_SUCCESS:
 		return;
@@ -1507,7 +1509,7 @@ make_string_init:;
 	}
 
 	assign_error_t error = semantic_assign(type, expression);
-	if (error == ASSIGN_ERROR_INCOMPATIBLE)
+	if ((error == ASSIGN_ERROR_INCOMPATIBLE) && (type != type_infer))
 		return NULL;
 	position_t const *const pos = &expression->base.pos;
 	report_assign_error(error, type, expression, "initializer", pos);
@@ -2108,30 +2110,41 @@ static initializer_t *parse_initializer(parse_initializer_env_t *env)
 	size_t         size = 0;
 	initializer_t *result;
 
-	if (is_type_scalar(type)) {
-		result = parse_scalar_initializer(type, env->must_be_constant, true);
-	} else if (accept('{')) {
-		type_path_t path;
-		memset(&path, 0, sizeof(path));
-		path.top_type = env->type;
-		path.path     = NEW_ARR_F(type_path_entry_t, 0);
+	if (type == type_infer)
+    {
+	    // We don't know if it is scalar or array
 
-		descend_into_subtype(&path);
+	    // AW TODO - need to add support for compound and array types
 
-		add_anchor_token('}');
-		result = parse_sub_initializer(&path, env->type, env);
-		rem_anchor_token('}');
+            result = parse_scalar_initializer(type, env->must_be_constant, false);
 
-		size = path.size;
-		DEL_ARR_F(path.path);
+    }
+	else {
 
-		expect('}');
-	} else {
-		/* parse_scalar_initializer() also works in this case: we simply
-		 * have an expression without {} around it */
-		result = parse_scalar_initializer(type, env->must_be_constant, false);
-	}
+        if (is_type_scalar(type)) {
+            result = parse_scalar_initializer(type, env->must_be_constant, true);
+        } else if (accept('{')) {
+            type_path_t path;
+            memset(&path, 0, sizeof(path));
+            path.top_type = env->type;
+            path.path = NEW_ARR_F(type_path_entry_t, 0);
 
+            descend_into_subtype(&path);
+
+            add_anchor_token('}');
+            result = parse_sub_initializer(&path, env->type, env);
+            rem_anchor_token('}');
+
+            size = path.size;
+            DEL_ARR_F(path.path);
+
+            expect('}');
+        } else {
+            /* parse_scalar_initializer() also works in this case: we simply
+             * have an expression without {} around it */
+            result = parse_scalar_initializer(type, env->must_be_constant, false);
+        }
+    }
 	/* §6.7.8:22 array initializers for arrays with unknown size determine
 	 * the array type size */
 	if (is_type_array(type) && type->array.size_expression == NULL
